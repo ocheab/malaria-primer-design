@@ -49,7 +49,7 @@ marker_choices <- basename(list.dirs(root_dir, recursive = FALSE))
 
 ui <- navbarPage(
   title = div(
-    img(src = "logo.png", height = "40px", style = "margin-right: 10px;"),
+    img(src = "www/logo.png", height = "40px", style = "margin-right: 10px;"),
     span("Centre for Malaria and Other Tropical Diseases Care, UITH, Ilorin, Nigeria", style = "font-size: 16px; font-weight: bold;")
   ),
   theme = bs_theme(version = 5, bootswatch = "flatly", base_font = font_google("Lato")),
@@ -60,7 +60,7 @@ ui <- navbarPage(
                     h3("Welcome to the Malaria Primer Designer", style = "margin-top: 20px;"),
                     p("This tool helps you design specific and optimized primers for malaria diagnostic markers across Plasmodium species.", style = "font-size: 16px;"),
                     br(),
-                    img(src = "pcr_diagram.png", height = "300px", style = "display: block; margin-left: auto; margin-right: auto;"),
+                    img(src = "www/pcr_diagram.png", height = "300px", style = "display: block; margin-left: auto; margin-right: auto;"),
                     p(em("Figure: Overview of the PCR process showing denaturation, primer annealing, and extension."), style = "text-align: center;"),
                     br(),
                     tags$ul(
@@ -115,6 +115,7 @@ ui <- navbarPage(
 )
 
 server <- function(input, output, session) {
+  addResourcePath("www", system.file("www", package = "malariaPrimerDesigner"))
   output$speciesUI <- renderUI({
     if (!is.null(input$customFasta)) {
       return(NULL)  # hide species selection when custom FASTA is uploaded
