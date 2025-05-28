@@ -49,7 +49,7 @@ marker_choices <- basename(list.dirs(root_dir, recursive = FALSE))
 
 ui <- navbarPage(
   title = div(
-    img(src = "logo.png", height = "40px", style = "margin-right: 10px;"),
+    img(src = "inst/www/logo.png", height = "40px", style = "margin-right: 10px;"),
     span("Centre for Malaria and Other Tropical Diseases Care, UITH, Ilorin, Nigeria", style = "font-size: 16px; font-weight: bold;")
   ),
   theme = bs_theme(version = 5, bootswatch = "flatly", base_font = font_google("Lato")),
