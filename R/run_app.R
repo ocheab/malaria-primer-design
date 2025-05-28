@@ -1,9 +1,6 @@
-#' Launch the Malaria Primer Designer Shiny App
-#'
-#' This function launches the interactive user interface for designing PCR primers
-#' for malaria diagnostic markers across Plasmodium species.
-#'
+#' Launch the Malaria Primer Designer App
 #' @export
 run_app <- function() {
+  addResourcePath("www", system.file("www", package = "malariaPrimerDesigner"))
   shiny::shinyApp(ui = ui, server = server)
 }
