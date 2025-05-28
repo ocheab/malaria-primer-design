@@ -49,3 +49,11 @@ install.packages("devtools")
 
 # Install malariaPrimerDesigner from GitHub
 devtools::install_github("ocheab/malaria-primer-design", INSTALL_opts = "--no-staged-install")
+
+
+**## 🧪 Running the App**
+
+```r
+library(malariaPrimerDesigner)
+malariaPrimerDesigner::run_app()
+
