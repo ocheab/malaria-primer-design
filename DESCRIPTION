@@ -8,10 +8,9 @@ Authors@R: person(given = "Oche",
 Description: An interactive Shiny application for designing and evaluating PCR primers targeting malaria diagnostic markers across Plasmodium species. The tool supports custom FASTA uploads, in-built reference marker sets, GC content and melting temperature filters, as well as checks for self-complementarity, primer dimers, and GC clamps. Results can be downloaded in CSV and FASTA format. Developed by the Centre for Malaria and Other Tropical Diseases Care, University of Ilorin Teaching Hospital, Nigeria.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
-RoxygenNote: 7.2.3
-Depends: R (>= 4.1.0)
-Imports: 
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 4.1.0),
     shiny,
     shinyWidgets,
     Biostrings,
