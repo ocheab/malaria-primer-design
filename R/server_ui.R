@@ -48,8 +48,9 @@ calculate_tm <- function(seq) {
 root_dir <- system.file("extdata", package = "malariaPrimerDesigner")
 marker_choices <- basename(list.dirs(root_dir, recursive = FALSE))
 
-ui <- navbarPage(
-  add_busy_spinner(spin = "fading-circle", color = "#2C3E50", position = "bottom-right")
+ui <- tagList(
+  add_busy_spinner(spin = "fading-circle", color = "#2C3E50", position = "bottom-right"),
+  navbarPage(
   title = div(
     img(src = "www/logo.png", height = "40px", style = "margin-right: 10px;"),
     span("Centre for Malaria and Other Tropical Diseases Care, UITH, Ilorin, Nigeria", style = "font-size: 16px; font-weight: bold;")
@@ -114,7 +115,7 @@ ui <- navbarPage(
              )
            )
   )
-)
+))
 
 server <- function(input, output, session) {
   addResourcePath("www", system.file("www", package = "malariaPrimerDesigner"))
