@@ -225,10 +225,13 @@ server <- function(input, output, session) {
       primer_results(primers)
       showNotification(paste("Primer design completed:", nrow(primers), "primers found."), type = "message")
       output$primerTable <- renderDT({
-  datatable(
-    primers[, c("Species", "Gene", "Forward", "Reverse", "Start", "End", "Length",
-                "Fwd_Tm", "Rev_Tm", "Delta_Tm", "Fwd_GC", "Rev_GC", "GC",
-                "Hairpin", "Dimer", "GC_Clamp", "Score")],
+  df <- primers[, c("Species", "Gene", "Forward", "Reverse", "Start", "End", "Length",
+                    "Fwd_Tm", "Rev_Tm", "Delta_Tm", "Fwd_GC", "Rev_GC", "GC",
+                    "Hairpin", "Dimer", "GC_Clamp", "Score")]
+
+  imbalance_flag <- abs(df$Fwd_GC - df$Rev_GC) > 5
+
+  datatable(df,
     selection = 'multiple',
     filter = 'top',
     options = list(pageLength = 10),
@@ -246,17 +249,11 @@ server <- function(input, output, session) {
     ) %>%
     formatStyle(
       'Fwd_GC',
-      backgroundColor = styleEqual(c(TRUE, FALSE),
-        ifelse(abs(primers$Fwd_GC - primers$Rev_GC) > 5,
-               c("salmon", NA), c(NA, NA))
-      )
+      backgroundColor = styleEqual(c(TRUE, FALSE), c("salmon", NA))[imbalance_flag + 1]
     ) %>%
     formatStyle(
       'Rev_GC',
-      backgroundColor = styleEqual(c(TRUE, FALSE),
-        ifelse(abs(primers$Fwd_GC - primers$Rev_GC) > 5,
-               c("salmon", NA), c(NA, NA))
-      )
+      backgroundColor = styleEqual(c(TRUE, FALSE), c("salmon", NA))[imbalance_flag + 1]
     )
 })
     })
