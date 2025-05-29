@@ -18,7 +18,8 @@ Depends:
     ggplot2,
     seqinr,
     stringr,
-    bslib
+    bslib,
+    shinybusy
 Suggests:
     knitr,
     rmarkdown
