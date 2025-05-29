@@ -211,7 +211,7 @@ server <- function(input, output, session) {
               GC = round((fwd_gc + rev_gc) / 2, 2),
               Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
               Score = round(score, 2)
-            ))))
+            )))
           }
         }
       }
