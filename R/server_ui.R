@@ -225,40 +225,40 @@ server <- function(input, output, session) {
       primer_results(primers)
       showNotification(paste("Primer design completed:", nrow(primers), "primers found."), type = "message")
       output$primerTable <- renderDT({
-        datatable(
-          primers[, c("Species", "Gene", "Forward", "Reverse", "Start", "End", "Length",
-                      "Fwd_Tm", "Rev_Tm", "Delta_Tm", "Fwd_GC", "Rev_GC", "GC",
-                      "Hairpin", "Dimer", "GC_Clamp", "Score")],
-          selection = 'multiple',
-          filter = 'top',
-          options = list(pageLength = 10),
-          rownames = FALSE
-        ) %>%
-          formatStyle(
-            'Delta_Tm',
-            backgroundColor = styleInterval(2, c(NA, 'salmon')),  # Flag ∆Tm > 2°C
-            fontWeight = styleInterval(2, c('normal', 'bold'))
-          ) %>%
-          formatStyle(
-            'GC',
-            backgroundColor = styleInterval(40, c('salmon', NA)),  # Flag average GC < 40%
-            fontWeight = styleInterval(40, c('bold', 'normal'))
-          ) %>%
-          formatStyle(
-            'Fwd_GC',
-            backgroundColor = styleEqual(
-              primers$Fwd_GC - primers$Rev_GC > 5 | primers$Rev_GC - primers$Fwd_GC > 5,
-              c("salmon", NA)
-            )
-          ) %>%
-          formatStyle(
-            'Rev_GC',
-            backgroundColor = styleEqual(
-              primers$Fwd_GC - primers$Rev_GC > 5 | primers$Rev_GC - primers$Fwd_GC > 5,
-              c("salmon", NA)
-            )
-          )
-      })
+  datatable(
+    primers[, c("Species", "Gene", "Forward", "Reverse", "Start", "End", "Length",
+                "Fwd_Tm", "Rev_Tm", "Delta_Tm", "Fwd_GC", "Rev_GC", "GC",
+                "Hairpin", "Dimer", "GC_Clamp", "Score")],
+    selection = 'multiple',
+    filter = 'top',
+    options = list(pageLength = 10),
+    rownames = FALSE
+  ) %>%
+    formatStyle(
+      'Delta_Tm',
+      backgroundColor = styleInterval(2, c(NA, 'salmon')),
+      fontWeight = styleInterval(2, c('normal', 'bold'))
+    ) %>%
+    formatStyle(
+      'GC',
+      backgroundColor = styleInterval(40, c('salmon', NA)),
+      fontWeight = styleInterval(40, c('bold', 'normal'))
+    ) %>%
+    formatStyle(
+      'Fwd_GC',
+      backgroundColor = styleEqual(c(TRUE, FALSE),
+        ifelse(abs(primers$Fwd_GC - primers$Rev_GC) > 5,
+               c("salmon", NA), c(NA, NA))
+      )
+    ) %>%
+    formatStyle(
+      'Rev_GC',
+      backgroundColor = styleEqual(c(TRUE, FALSE),
+        ifelse(abs(primers$Fwd_GC - primers$Rev_GC) > 5,
+               c("salmon", NA), c(NA, NA))
+      )
+    )
+})
     })
   })
   
