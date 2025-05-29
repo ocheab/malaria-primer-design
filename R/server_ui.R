@@ -274,22 +274,39 @@ server <- function(input, output, session) {
   
   req(primer_results())
   df <- primer_results()
-  
-  # Convert to long format for Fwd_GC and Rev_GC
- df_long_gc <- tidyr::pivot_longer(df, cols = c(Fwd_GC, Rev_GC), names_to = "Type", values_to = "GC_Value")
 
-  ggplot(df_long_gc, aes(x = GC_Value, fill = Type)) +
-  geom_histogram(binwidth = 1, position = "dodge", color = "black") +
-  theme_minimal() +
-  labs(title = "GC Content Distribution", x = "GC%", y = "Count") +
-  theme(
-    axis.title = element_text(size = 14, face = "bold"),
-    axis.text = element_text(size = 12),
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 12)
-  ) +
-  scale_fill_manual(values = c("Fwd_GC" = "#7CAE00", "Rev_GC" = "#C77CFF"))
+  # ✅ Make sure the columns exist and are numeric
+  if (!("Fwd_GC" %in% names(df)) || !("Rev_GC" %in% names(df))) {
+    shinybusy::remove_modal_spinner()
+    return(NULL)
+  }
+
+  df_long_gc <- tidyr::pivot_longer(
+    df,
+    cols = c("Fwd_GC", "Rev_GC"),
+    names_to = "Type",
+    values_to = "GC_Value"
+  )
+
+  # ✅ Check for valid rows
+  if (nrow(df_long_gc) == 0 || all(is.na(df_long_gc$GC_Value))) {
+    shinybusy::remove_modal_spinner()
+    showNotification("No valid GC content to plot.", type = "error")
+    return(NULL)
+  }
+
+  p <- ggplot(df_long_gc, aes(x = GC_Value, fill = Type)) +
+    geom_histogram(position = "dodge", binwidth = 1, color = "black") +
+    theme_minimal() +
+    labs(title = "GC Content Distribution", x = "GC%", y = "Count") +
+    theme(
+      axis.title = element_text(size = 14, face = "bold"),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 12)
+    ) +
+    scale_fill_manual(values = c("Fwd_GC" = "#7CAE00", "Rev_GC" = "#C77CFF"))
 
   shinybusy::remove_modal_spinner()
   p
