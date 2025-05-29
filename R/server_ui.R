@@ -200,18 +200,18 @@ server <- function(input, output, session) {
               ifelse(dm == "Yes", 2, 0)
             
             primers <- rbind(primers, data.frame(
-              Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
-              Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
-              Forward = fwd, Reverse = rev, Start = i, End = i + len - 1, Length = len,
-              Fwd_Tm = round(fwd_tm, 2),
-              Rev_Tm = round(rev_tm, 2),
-              Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
-              Fwd_GC = round(fwd_gc, 2),
-              Rev_GC = round(rev_gc, 2),
-              GC = round((fwd_gc + rev_gc) / 2, 2),
-              Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
-              Score = round(score, 2)
-            )))
+  Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
+  Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
+  Forward = fwd, Reverse = rev, Start = i, End = i + len - 1, Length = len,
+  Fwd_Tm = round(fwd_tm, 2),
+  Rev_Tm = round(rev_tm, 2),
+  Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
+  Fwd_GC = round(fwd_gc, 2),
+  Rev_GC = round(rev_gc, 2),
+  GC = round((fwd_gc + rev_gc) / 2, 2),
+  Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
+  Score = round(score, 2)
+))
           }
         }
       }
