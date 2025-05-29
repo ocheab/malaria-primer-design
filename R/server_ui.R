@@ -276,20 +276,20 @@ server <- function(input, output, session) {
   df <- primer_results()
   
   # Convert to long format for Fwd_GC and Rev_GC
-  df_long_gc <- tidyr::pivot_longer(df, cols = c(Fwd_GC, Rev_GC), names_to = "Type", values_to = "GC")
+ df_long_gc <- tidyr::pivot_longer(df, cols = c(Fwd_GC, Rev_GC), names_to = "Type", values_to = "GC_Value")
 
-  p <- ggplot(df_long_gc, aes(x = GC, fill = Type)) +
-    geom_histogram(binwidth = 1, position = "dodge", color = "black") +
-    theme_minimal() +
-    labs(title = "GC Content Distribution", x = "GC%", y = "Count") +
-    theme(
-      axis.title = element_text(size = 14, face = "bold"),
-      axis.text = element_text(size = 12),
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-      legend.title = element_blank(),
-      legend.text = element_text(size = 12)
-    ) +
-    scale_fill_manual(values = c("Fwd_GC" = "#7CAE00", "Rev_GC" = "#C77CFF"))  # custom color palette
+  ggplot(df_long_gc, aes(x = GC_Value, fill = Type)) +
+  geom_histogram(binwidth = 1, position = "dodge", color = "black") +
+  theme_minimal() +
+  labs(title = "GC Content Distribution", x = "GC%", y = "Count") +
+  theme(
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_fill_manual(values = c("Fwd_GC" = "#7CAE00", "Rev_GC" = "#C77CFF"))
 
   shinybusy::remove_modal_spinner()
   p
