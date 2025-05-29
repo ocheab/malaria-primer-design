@@ -6,6 +6,7 @@ library(ggplot2)
 library(seqinr)
 library(shinyWidgets)
 library(bslib)
+library(shinybusy)
 
 has_self_complementarity <- function(seq) {
   rc <- as.character(reverseComplement(DNAString(seq)))
@@ -48,6 +49,7 @@ root_dir <- system.file("extdata", package = "malariaPrimerDesigner")
 marker_choices <- basename(list.dirs(root_dir, recursive = FALSE))
 
 ui <- navbarPage(
+  add_busy_spinner(spin = "fading-circle", color = "#2C3E50", position = "bottom-right")
   title = div(
     img(src = "www/logo.png", height = "40px", style = "margin-right: 10px;"),
     span("Centre for Malaria and Other Tropical Diseases Care, UITH, Ilorin, Nigeria", style = "font-size: 16px; font-weight: bold;")
@@ -241,22 +243,50 @@ server <- function(input, output, session) {
   })
   
   output$tmPlot <- renderPlot({
+  shinybusy::show_modal_spinner(text = "Generating Tm distribution plot...", spin = "fading-circle")
+  
   req(primer_results())
   df <- primer_results()
+  
+  # Convert wide Tm to long format
   df_long <- tidyr::pivot_longer(df, cols = c(Fwd_Tm, Rev_Tm), names_to = "Type", values_to = "Tm")
-
-  ggplot(df_long, aes(x = Tm, fill = Type)) +
-    geom_histogram(alpha = 0.6, position = "identity", binwidth = 1, color = "black") +
+  
+  p <- ggplot(df_long, aes(x = Tm, fill = Type)) +
+    geom_histogram(position = "dodge", binwidth = 1, color = "black") +
     theme_minimal() +
-    labs(title = "Tm Distribution", x = "Melting Temperature (°C)", y = "Count")
+    labs(title = "Tm Distribution", x = "Melting Temperature (°C)", y = "Count") +
+    theme(
+      axis.title = element_text(size = 14, face = "bold"),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 12)
+    ) +
+    scale_fill_manual(values = c("Fwd_Tm" = "#F8766D", "Rev_Tm" = "#00BFC4"))
+  
+  shinybusy::remove_modal_spinner()
+  p
 })
   
   output$gcPlot <- renderPlot({
-    req(primer_results())
-    ggplot(primer_results(), aes(x = GC)) +
-      geom_histogram(binwidth = 1, fill = "darkgreen", color = "black") +
-      theme_minimal() + labs(title = "GC Content Distribution", x = "GC%", y = "Count")
-  })
+  shinybusy::show_modal_spinner(text = "Generating GC content plot...", spin = "fading-circle")
+  
+  req(primer_results())
+  df <- primer_results()
+  
+  p <- ggplot(df, aes(x = GC)) +
+    geom_histogram(binwidth = 1, fill = "darkgreen", color = "black") +
+    theme_minimal() +
+    labs(title = "GC Content Distribution", x = "GC%", y = "Count") +
+    theme(
+      axis.title = element_text(size = 14, face = "bold"),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  shinybusy::remove_modal_spinner()
+  p
+})
   
   output$downloadPrimers <- downloadHandler(
     filename = function() { paste0("filtered_primers_", Sys.Date(), ".csv") },
