@@ -260,11 +260,15 @@ server <- function(input, output, session) {
   })
   
   output$tmPlot <- renderPlot({
-    req(primer_results())
-    ggplot(primer_results(), aes(x = Tm)) +
-      geom_histogram(binwidth = 1, fill = "steelblue", color = "black") +
-      theme_minimal() + labs(title = "Melting Temperature Distribution", x = "Tm (°C)", y = "Count")
-  })
+  req(primer_results())
+  df <- primer_results()
+  df_long <- tidyr::pivot_longer(df, cols = c(Fwd_Tm, Rev_Tm), names_to = "Type", values_to = "Tm")
+
+  ggplot(df_long, aes(x = Tm, fill = Type)) +
+    geom_histogram(alpha = 0.6, position = "identity", binwidth = 1, color = "black") +
+    theme_minimal() +
+    labs(title = "Tm Distribution", x = "Melting Temperature (°C)", y = "Count")
+})
   
   output$gcPlot <- renderPlot({
     req(primer_results())
