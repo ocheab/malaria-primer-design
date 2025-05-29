@@ -225,40 +225,17 @@ server <- function(input, output, session) {
       primer_results(primers)
       showNotification(paste("Primer design completed:", nrow(primers), "primers found."), type = "message")
       output$primerTable <- renderDT({
-  df <- primer_results()[, c("Species", "Gene", "Forward", "Reverse", "Start", "End", "Length",
-                             "Fwd_Tm", "Rev_Tm", "Delta_Tm", "Fwd_GC", "Rev_GC", "GC",
-                             "Hairpin", "Dimer", "GC_Clamp", "Score")]
+  df <- primer_results()
 
-  imbalance_flag <- abs(df$Fwd_GC - df$Rev_GC) > 5
+  print(head(df))  # Debugging: check if data reaches here
 
-  datatable(df,
+  datatable(
+    df,
     selection = 'multiple',
     filter = 'top',
     options = list(pageLength = 10),
     rownames = FALSE
-  ) %>%
-    formatStyle(
-      'Delta_Tm',
-      backgroundColor = styleInterval(2, c(NA, 'salmon')),
-      fontWeight = styleInterval(2, c('normal', 'bold'))
-    ) %>%
-    formatStyle(
-      'GC',
-      backgroundColor = styleInterval(40, c('salmon', NA)),
-      fontWeight = styleInterval(40, c('bold', 'normal'))
-    ) %>%
-    formatStyle(
-      columns = 'Fwd_GC',
-      target = 'cell',
-      backgroundColor = styleEqual(c(TRUE, FALSE), c('salmon', NA)),
-      condition = imbalance_flag
-    ) %>%
-    formatStyle(
-      columns = 'Rev_GC',
-      target = 'cell',
-      backgroundColor = styleEqual(c(TRUE, FALSE), c('salmon', NA)),
-      condition = imbalance_flag
-    )
+  )
 })
     })
   })
