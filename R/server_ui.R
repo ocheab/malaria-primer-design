@@ -180,12 +180,13 @@ server <- function(input, output, session) {
   withProgress(message = "Designing primers...", value = 0, {
     total_seqs <- length(fasta_set)
     max_pairs_per_seq <- 10
-    rev_window <- c(100, 300)  # 100–300 bp downstream
+    rev_window <- c(100, 1000)  # search up to 600 bp downstream
     
     for (j in seq_along(fasta_set)) {
       incProgress(j / total_seqs, detail = paste("Processing sequence", j, "of", total_seqs))
       
-      this_acc <- names(fasta_set)[j]
+      # Only extract first token of FASTA header
+      this_acc <- strsplit(names(fasta_set)[j], "\\s+")[[1]][1]
       this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
       seqlen <- nchar(this_seq)
       found_pairs <- 0
@@ -200,8 +201,8 @@ server <- function(input, output, session) {
           if (fwd_gc < input$gcRange[1] || fwd_gc > input$gcRange[2] ||
               fwd_tm < input$tmRange[1] || fwd_tm > input$tmRange[2]) next
           
-          # Search for reverse primers only in a limited downstream window
-          for (k in (i + rev_window[1]):min(i + rev_window[2], seqlen - input$minLen)) {
+          # Sample reverse primer region every 10 bp
+          for (k in seq(i + rev_window[1], min(i + rev_window[2], seqlen - input$minLen), by = 10)) {
             for (rev_len in input$minLen:input$maxLen) {
               if ((k + rev_len - 1) > seqlen) break
               rev_seq <- substr(this_seq, k, k + rev_len - 1)
@@ -213,7 +214,15 @@ server <- function(input, output, session) {
                   rev_tm < input$tmRange[1] || rev_tm > input$tmRange[2]) next
               
               amplicon_size <- (k + rev_len - 1) - i + 1
-              hp <- ifelse(has_self_complementarity(fwd) | has_self_complementarity(rev), "Yes", "No")
+              
+              # Relaxed hairpin rule: allow <= 6 matches with self
+              relaxed_hairpin_check <- function(seq) {
+                rc <- as.character(reverseComplement(DNAString(seq)))
+                score <- sum(strsplit(seq, "")[[1]] == strsplit(rc, "")[[1]])
+                return(score > 6)
+              }
+              
+              hp <- ifelse(relaxed_hairpin_check(fwd) | relaxed_hairpin_check(rev), "Yes", "No")
               dm <- ifelse(has_cross_dimer(fwd, rev), "Yes", "No")
               clamp <- ifelse(has_gc_clamp(fwd) & has_gc_clamp(rev), "Yes", "No")
               
