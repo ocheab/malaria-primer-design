@@ -170,7 +170,7 @@ server <- function(input, output, session) {
   primers <- data.frame(
     Accession = character(), Species = character(), Gene = character(),
     Forward = character(), Reverse = character(), Start = integer(), End = integer(),
-    Length = integer(), Amplicon_Size = integer(),
+    Amplicon_Size = integer(),
     Fwd_Tm = numeric(), Rev_Tm = numeric(), Delta_Tm = numeric(),
     Fwd_GC = numeric(), Rev_GC = numeric(), GC = numeric(),
     Hairpin = character(), Dimer = character(), GC_Clamp = character(),
@@ -186,51 +186,57 @@ server <- function(input, output, session) {
       this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
       seqlen <- nchar(this_seq)
       
-      for (i in 1:(seqlen - input$maxLen)) {
-        for (len in input$minLen:input$maxLen) {
-          if ((i + len - 1) > seqlen) break
-          
-          fwd <- substr(this_seq, i, i + len - 1)
-          rev <- as.character(reverseComplement(DNAString(fwd)))
-          
-          fwd_gc <- (str_count(fwd, "[GC]") / len) * 100
-          rev_gc <- (str_count(rev, "[GC]") / len) * 100
+      for (i in 1:(seqlen - input$maxLen - 100)) {
+        for (fwd_len in input$minLen:input$maxLen) {
+          if (i + fwd_len - 1 > seqlen) next
+          fwd <- substr(this_seq, i, i + fwd_len - 1)
+          fwd_gc <- (str_count(fwd, "[GC]") / fwd_len) * 100
           fwd_tm <- calculate_tm(fwd)
-          rev_tm <- calculate_tm(rev)
           
-          amplicon_size <- (i + len - 1) - i + 1  # Amplicon size is always >= len here
+          # Forward primer filter
+          if (fwd_gc < input$gcRange[1] || fwd_gc > input$gcRange[2] ||
+              fwd_tm < input$tmRange[1] || fwd_tm > input$tmRange[2]) next
           
-          # Ensure filters + amplicon size threshold
-          if (fwd_gc >= input$gcRange[1] && fwd_gc <= input$gcRange[2] &&
-              rev_gc >= input$gcRange[1] && rev_gc <= input$gcRange[2] &&
-              fwd_tm >= input$tmRange[1] && fwd_tm <= input$tmRange[2] &&
-              rev_tm >= input$tmRange[1] && rev_tm <= input$tmRange[2] &&
-              amplicon_size >= 100) {
-            
-            hp <- ifelse(has_self_complementarity(fwd) | has_self_complementarity(rev), "Yes", "No")
-            dm <- ifelse(has_cross_dimer(fwd, rev), "Yes", "No")
-            clamp <- ifelse(has_gc_clamp(fwd) & has_gc_clamp(rev), "Yes", "No")
-            
-            score <- abs(fwd_tm - mean(input$tmRange)) +
-              abs(rev_tm - mean(input$tmRange)) +
-              abs(fwd_gc - mean(input$gcRange)) +
-              abs(rev_gc - mean(input$gcRange)) +
-              ifelse(hp == "Yes", 2, 0) +
-              ifelse(dm == "Yes", 2, 0)
-            
-            primers <- rbind(primers, data.frame(
-              Accession = this_acc,
-              Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
-              Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
-              Forward = fwd, Reverse = rev, Start = i, End = i + len - 1,
-              Length = len, Amplicon_Size = amplicon_size,
-              Fwd_Tm = round(fwd_tm, 2), Rev_Tm = round(rev_tm, 2),
-              Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
-              Fwd_GC = round(fwd_gc, 2), Rev_GC = round(rev_gc, 2),
-              GC = round((fwd_gc + rev_gc) / 2, 2),
-              Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
-              Score = round(score, 2)
-            ))
+          # Now look for reverse primer ≥100 bp downstream
+          for (k in (i + 100):(seqlen - input$minLen)) {
+            for (rev_len in input$minLen:input$maxLen) {
+              if ((k + rev_len - 1) > seqlen) break
+              rev_seq <- substr(this_seq, k, k + rev_len - 1)
+              rev <- as.character(reverseComplement(DNAString(rev_seq)))
+              rev_gc <- (str_count(rev, "[GC]") / rev_len) * 100
+              rev_tm <- calculate_tm(rev)
+              
+              # Reverse primer filter
+              if (rev_gc < input$gcRange[1] || rev_gc > input$gcRange[2] ||
+                  rev_tm < input$tmRange[1] || rev_tm > input$tmRange[2]) next
+              
+              amplicon_size <- (k + rev_len - 1) - i + 1
+              hp <- ifelse(has_self_complementarity(fwd) | has_self_complementarity(rev), "Yes", "No")
+              dm <- ifelse(has_cross_dimer(fwd, rev), "Yes", "No")
+              clamp <- ifelse(has_gc_clamp(fwd) & has_gc_clamp(rev), "Yes", "No")
+              
+              score <- abs(fwd_tm - mean(input$tmRange)) +
+                abs(rev_tm - mean(input$tmRange)) +
+                abs(fwd_gc - mean(input$gcRange)) +
+                abs(rev_gc - mean(input$gcRange)) +
+                ifelse(hp == "Yes", 2, 0) +
+                ifelse(dm == "Yes", 2, 0)
+              
+              primers <- rbind(primers, data.frame(
+                Accession = this_acc,
+                Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
+                Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
+                Forward = fwd, Reverse = rev,
+                Start = i, End = k + rev_len - 1,
+                Amplicon_Size = amplicon_size,
+                Fwd_Tm = round(fwd_tm, 2), Rev_Tm = round(rev_tm, 2),
+                Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
+                Fwd_GC = round(fwd_gc, 2), Rev_GC = round(rev_gc, 2),
+                GC = round((fwd_gc + rev_gc) / 2, 2),
+                Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
+                Score = round(score, 2)
+              ))
+            }
           }
         }
       }
