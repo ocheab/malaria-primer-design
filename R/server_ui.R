@@ -157,39 +157,55 @@ server <- function(input, output, session) {
   primer_results <- reactiveVal()
   
   observeEvent(input$designBtn, {
-    seq <- get_target_sequence()
-    req(seq)
-    seq <- gsub("\\s", "", seq)
+  fasta_set <- if (!is.null(input$customFasta)) {
+    readDNAStringSet(input$customFasta$datapath, format = "fasta")
+  } else {
+    req(input$marker, input$species)
+    file_path <- file.path(root_dir, input$marker, paste0(input$species, ".txt"))
+    readDNAStringSet(file_path, format = "fasta")
+  }
+  
+  req(fasta_set)
+  
+  primers <- data.frame(
+    Accession = character(), Species = character(), Gene = character(),
+    Forward = character(), Reverse = character(), Start = integer(), End = integer(),
+    Length = integer(), Amplicon_Size = integer(),
+    Fwd_Tm = numeric(), Rev_Tm = numeric(), Delta_Tm = numeric(),
+    Fwd_GC = numeric(), Rev_GC = numeric(), GC = numeric(),
+    Hairpin = character(), Dimer = character(), GC_Clamp = character(),
+    Score = numeric(), stringsAsFactors = FALSE
+  )
+  
+  withProgress(message = "Designing primers...", value = 0, {
+    seq_count <- length(fasta_set)
+    incProgress(0.1, detail = "Initializing")
     
-    withProgress(message = "Designing primers...", value = 0, {
-      incProgress(0.1, detail = "Initializing")
-      seqlen <- nchar(seq)
-      primers <- data.frame(
-        Species = character(), Gene = character(), Forward = character(), Reverse = character(),
-        Start = integer(), End = integer(), Length = integer(),
-        GC = numeric(), Tm = numeric(), Hairpin = character(), Dimer = character(),
-        GC_Clamp = character(), Score = numeric(), stringsAsFactors = FALSE
-      )
+    for (j in seq_along(fasta_set)) {
+      this_acc <- names(fasta_set)[j]
+      this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
+      seqlen <- nchar(this_seq)
       
-      incProgress(0.3, detail = "Searching candidate primers")
       for (i in 1:(seqlen - input$maxLen)) {
         for (len in input$minLen:input$maxLen) {
           if ((i + len - 1) > seqlen) break
           
-          fwd <- substr(seq, i, i + len - 1)
+          fwd <- substr(this_seq, i, i + len - 1)
           rev <- as.character(reverseComplement(DNAString(fwd)))
           
-          # GC and Tm for both forward and reverse
           fwd_gc <- (str_count(fwd, "[GC]") / len) * 100
           rev_gc <- (str_count(rev, "[GC]") / len) * 100
           fwd_tm <- calculate_tm(fwd)
           rev_tm <- calculate_tm(rev)
           
-          # Check both primers fall within filter criteria
+          amplicon_size <- (i + len - 1) - i + 1  # Amplicon size is always >= len here
+          
+          # Ensure filters + amplicon size threshold
           if (fwd_gc >= input$gcRange[1] && fwd_gc <= input$gcRange[2] &&
               rev_gc >= input$gcRange[1] && rev_gc <= input$gcRange[2] &&
               fwd_tm >= input$tmRange[1] && fwd_tm <= input$tmRange[2] &&
-              rev_tm >= input$tmRange[1] && rev_tm <= input$tmRange[2]) {
+              rev_tm >= input$tmRange[1] && rev_tm <= input$tmRange[2] &&
+              amplicon_size >= 100) {
             
             hp <- ifelse(has_self_complementarity(fwd) | has_self_complementarity(rev), "Yes", "No")
             dm <- ifelse(has_cross_dimer(fwd, rev), "Yes", "No")
@@ -203,45 +219,40 @@ server <- function(input, output, session) {
               ifelse(dm == "Yes", 2, 0)
             
             primers <- rbind(primers, data.frame(
-  Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
-  Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
-  Forward = fwd, Reverse = rev, Start = i, End = i + len - 1, Length = len,
-  Fwd_Tm = round(fwd_tm, 2),
-  Rev_Tm = round(rev_tm, 2),
-  Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
-  Fwd_GC = round(fwd_gc, 2),
-  Rev_GC = round(rev_gc, 2),
-  GC = round((fwd_gc + rev_gc) / 2, 2),
-  Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
-  Score = round(score, 2)
-))
+              Accession = this_acc,
+              Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
+              Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
+              Forward = fwd, Reverse = rev, Start = i, End = i + len - 1,
+              Length = len, Amplicon_Size = amplicon_size,
+              Fwd_Tm = round(fwd_tm, 2), Rev_Tm = round(rev_tm, 2),
+              Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
+              Fwd_GC = round(fwd_gc, 2), Rev_GC = round(rev_gc, 2),
+              GC = round((fwd_gc + rev_gc) / 2, 2),
+              Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
+              Score = round(score, 2)
+            ))
           }
         }
       }
-      
-      incProgress(0.9, detail = "Finalizing")
-      if (nrow(primers) == 0) {
-        showNotification("No primers found with current parameters. Try relaxing constraints.", type = "warning")
-      }
-      
-      primers <- primers[order(primers$Score), ]
-      primer_results(primers)
-      showNotification(paste("Primer design completed:", nrow(primers), "primers found."), type = "message")
-      output$primerTable <- renderDT({
-  df <- primer_results()
-
-  print(head(df))  # Debugging: check if data reaches here
-
-  datatable(
-    df,
-    selection = 'multiple',
-    filter = 'top',
-    options = list(pageLength = 10),
-    rownames = FALSE
-  )
-})
+    }
+    
+    incProgress(0.9, detail = "Finalizing")
+    if (nrow(primers) == 0) {
+      showNotification("No primers found with current parameters. Try relaxing constraints.", type = "warning")
+    }
+    
+    primers <- primers[order(primers$Score), ]
+    primer_results(primers)
+    
+    showNotification(paste("Primer design completed:", nrow(primers), "primers found."), type = "message")
+    
+    output$primerTable <- renderDT({
+      df <- primer_results()
+      datatable(df, selection = 'multiple', filter = 'top',
+                options = list(pageLength = 10), rownames = FALSE)
     })
   })
+})
   
   output$tmPlot <- renderPlot({
   shinybusy::show_modal_spinner(text = "Generating Tm distribution plot...", spin = "fading-circle")
