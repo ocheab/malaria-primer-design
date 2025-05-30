@@ -178,27 +178,30 @@ server <- function(input, output, session) {
   )
   
   withProgress(message = "Designing primers...", value = 0, {
-    seq_count <- length(fasta_set)
-    incProgress(0.1, detail = "Initializing")
+    total_seqs <- length(fasta_set)
+    max_pairs_per_seq <- 10
+    rev_window <- c(100, 300)  # 100–300 bp downstream
     
     for (j in seq_along(fasta_set)) {
+      incProgress(j / total_seqs, detail = paste("Processing sequence", j, "of", total_seqs))
+      
       this_acc <- names(fasta_set)[j]
       this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
       seqlen <- nchar(this_seq)
+      found_pairs <- 0
       
-      for (i in 1:(seqlen - input$maxLen - 100)) {
+      for (i in 1:(seqlen - input$maxLen - rev_window[2])) {
         for (fwd_len in input$minLen:input$maxLen) {
-          if (i + fwd_len - 1 > seqlen) next
+          if ((i + fwd_len - 1) > seqlen) next
           fwd <- substr(this_seq, i, i + fwd_len - 1)
           fwd_gc <- (str_count(fwd, "[GC]") / fwd_len) * 100
           fwd_tm <- calculate_tm(fwd)
           
-          # Forward primer filter
           if (fwd_gc < input$gcRange[1] || fwd_gc > input$gcRange[2] ||
               fwd_tm < input$tmRange[1] || fwd_tm > input$tmRange[2]) next
           
-          # Now look for reverse primer ≥100 bp downstream
-          for (k in (i + 100):(seqlen - input$minLen)) {
+          # Search for reverse primers only in a limited downstream window
+          for (k in (i + rev_window[1]):min(i + rev_window[2], seqlen - input$minLen)) {
             for (rev_len in input$minLen:input$maxLen) {
               if ((k + rev_len - 1) > seqlen) break
               rev_seq <- substr(this_seq, k, k + rev_len - 1)
@@ -206,7 +209,6 @@ server <- function(input, output, session) {
               rev_gc <- (str_count(rev, "[GC]") / rev_len) * 100
               rev_tm <- calculate_tm(rev)
               
-              # Reverse primer filter
               if (rev_gc < input$gcRange[1] || rev_gc > input$gcRange[2] ||
                   rev_tm < input$tmRange[1] || rev_tm > input$tmRange[2]) next
               
@@ -236,13 +238,18 @@ server <- function(input, output, session) {
                 Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
                 Score = round(score, 2)
               ))
+              
+              found_pairs <- found_pairs + 1
+              if (found_pairs >= max_pairs_per_seq) break
             }
+            if (found_pairs >= max_pairs_per_seq) break
           }
+          if (found_pairs >= max_pairs_per_seq) break
         }
+        if (found_pairs >= max_pairs_per_seq) break
       }
     }
     
-    incProgress(0.9, detail = "Finalizing")
     if (nrow(primers) == 0) {
       showNotification("No primers found with current parameters. Try relaxing constraints.", type = "warning")
     }
