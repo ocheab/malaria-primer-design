@@ -273,6 +273,8 @@ server <- function(input, output, session) {
   )
 
   max_relaxed_pairs <- 50  # total combinations per sequence
+  ideal_tm <- 60
+  ideal_gc <- 50
 
   for (j in seq_along(fasta_set)) {
     incProgress(j / total_seqs, detail = paste("Relaxed search for sequence", j))
@@ -299,10 +301,11 @@ server <- function(input, output, session) {
             rev_tm <- calculate_tm(rev)
             amplicon_size <- (k + rev_len - 1) - i + 1
 
-            score <- abs(fwd_tm - mean(input$tmRange)) +
-              abs(rev_tm - mean(input$tmRange)) +
-              abs(fwd_gc - mean(input$gcRange)) +
-              abs(rev_gc - mean(input$gcRange))
+            # Scoring based on closeness to ideal biological values
+            score <- abs(fwd_tm - ideal_tm) +
+                     abs(rev_tm - ideal_tm) +
+                     abs(fwd_gc - ideal_gc) +
+                     abs(rev_gc - ideal_gc)
 
             relaxed_hits <- rbind(relaxed_hits, data.frame(
               Accession = this_acc,
