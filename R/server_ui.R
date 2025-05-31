@@ -125,8 +125,8 @@ server <- function(input, output, session) {
     }
     req(input$marker)
     marker_path <- file.path(root_dir, input$marker)
-    species_files <- list.files(marker_path, pattern = "\\.txt$", full.names = FALSE)
-    species_names <- gsub(".txt$", "", species_files)
+    species_files <- list.files(marker_path, pattern = "\\.fasta$", full.names = FALSE)
+    species_names <- gsub(".fasta$", "", species_files)
     selectInput("species", "Select Plasmodium Species:", choices = species_names)
   })
   
@@ -141,7 +141,7 @@ server <- function(input, output, session) {
       fasta_set <- readDNAStringSet(input$customFasta$datapath, format = "fasta")
     } else {
       req(input$marker, input$species)
-      file_path <- file.path(root_dir, input$marker, paste0(input$species, ".txt"))
+      file_path <- file.path(root_dir, input$marker, paste0(input$species, ".fasta"))
       if (!file.exists(file_path)) return(NULL)
       fasta_set <- readDNAStringSet(file_path, format = "fasta")
     }
@@ -161,7 +161,7 @@ server <- function(input, output, session) {
     readDNAStringSet(input$customFasta$datapath, format = "fasta")
   } else {
     req(input$marker, input$species)
-    file_path <- file.path(root_dir, input$marker, paste0(input$species, ".txt"))
+    file_path <- file.path(root_dir, input$marker, paste0(input$species, ".fasta"))
     readDNAStringSet(file_path, format = "fasta")
   }
   
