@@ -315,6 +315,7 @@ server <- function(input, output, session) {
   
   primers <- relaxed_primers[1:3, ]
 }
+    primer_results(primers)  # ✅ Assign to reactive value
     
     primers <- primers[order(primers$Score), ]
     primer_results(primers)
@@ -323,6 +324,7 @@ server <- function(input, output, session) {
     
     output$primerTable <- renderDT({
       df <- primer_results()
+      req(df)
       datatable(df, selection = 'multiple', filter = 'top',
                 options = list(pageLength = 10), rownames = FALSE)
     })
