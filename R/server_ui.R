@@ -272,13 +272,16 @@ server <- function(input, output, session) {
     Score = numeric(), Mode = character(), stringsAsFactors = FALSE
   )
 
+  max_relaxed_pairs <- 50  # total combinations per sequence
+
   for (j in seq_along(fasta_set)) {
     incProgress(j / total_seqs, detail = paste("Relaxed search for sequence", j))
-    
+
     this_acc <- strsplit(names(fasta_set)[j], "\\s+")[[1]][1]
     this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
     seqlen <- nchar(this_seq)
-    local_hits <- data.frame()
+    relaxed_hits <- data.frame()
+    hit_count <- 0
 
     for (i in 1:(seqlen - input$maxLen - rev_window[2])) {
       for (fwd_len in input$minLen:input$maxLen) {
@@ -294,15 +297,14 @@ server <- function(input, output, session) {
             rev <- as.character(reverseComplement(DNAString(rev_seq)))
             rev_gc <- (str_count(rev, "[GC]") / rev_len) * 100
             rev_tm <- calculate_tm(rev)
-            
             amplicon_size <- (k + rev_len - 1) - i + 1
-            
+
             score <- abs(fwd_tm - mean(input$tmRange)) +
               abs(rev_tm - mean(input$tmRange)) +
               abs(fwd_gc - mean(input$gcRange)) +
               abs(rev_gc - mean(input$gcRange))
-            
-            local_hits <- rbind(local_hits, data.frame(
+
+            relaxed_hits <- rbind(relaxed_hits, data.frame(
               Accession = this_acc,
               Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
               Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
@@ -316,19 +318,25 @@ server <- function(input, output, session) {
               Score = round(score, 2),
               Mode = "Relaxed"
             ))
+
+            hit_count <- hit_count + 1
+            if (hit_count >= max_relaxed_pairs) break
           }
+          if (hit_count >= max_relaxed_pairs) break
         }
+        if (hit_count >= max_relaxed_pairs) break
       }
+      if (hit_count >= max_relaxed_pairs) break
     }
 
-    if (nrow(local_hits) > 0) {
-      top_hits <- head(local_hits[order(local_hits$Score), ], 3)
-      relaxed_primers <- rbind(relaxed_primers, top_hits)
+    if (nrow(relaxed_hits) > 0) {
+      top3 <- head(relaxed_hits[order(relaxed_hits$Score), ], 3)
+      relaxed_primers <- rbind(relaxed_primers, top3)
     }
   }
 
   primers <- relaxed_primers
-  showNotification(paste("Relaxed search completed:", nrow(primers), "primers found."), type = "message")
+  showNotification(paste("Relaxed search completed:", nrow(primers), "primers returned."), type = "message")
 }    
     
     primers <- primers[order(primers$Score), ]
