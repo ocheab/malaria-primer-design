@@ -259,9 +259,62 @@ server <- function(input, output, session) {
       }
     }
     
-    if (nrow(primers) == 0) {
-      showNotification("No primers found with current parameters. Try relaxing constraints.", type = "warning")
+    if (nrow(primers) < 3) {
+  showNotification(paste("Only", nrow(primers), "primer(s) found with strict constraints. Attempting relaxed design..."), type = "warning")
+  
+  relaxed_primers <- primers
+  remaining_needed <- 3 - nrow(relaxed_primers)
+  
+  for (j in seq_along(fasta_set)) {
+    this_acc <- strsplit(names(fasta_set)[j], "\\s+")[[1]][1]
+    this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
+    seqlen <- nchar(this_seq)
+    
+    for (i in 1:(seqlen - input$maxLen - rev_window[2])) {
+      for (fwd_len in input$minLen:input$maxLen) {
+        if ((i + fwd_len - 1) > seqlen) next
+        fwd <- substr(this_seq, i, i + fwd_len - 1)
+        fwd_gc <- (str_count(fwd, "[GC]") / fwd_len) * 100
+        fwd_tm <- calculate_tm(fwd)
+        if (fwd_gc < input$gcRange[1] || fwd_gc > input$gcRange[2] || fwd_tm < input$tmRange[1] || fwd_tm > input$tmRange[2]) next
+        
+        for (k in seq(i + rev_window[1], min(i + rev_window[2], seqlen - input$minLen), by = 10)) {
+          for (rev_len in input$minLen:input$maxLen) {
+            if ((k + rev_len - 1) > seqlen) break
+            rev_seq <- substr(this_seq, k, k + rev_len - 1)
+            rev <- as.character(reverseComplement(DNAString(rev_seq)))
+            rev_gc <- (str_count(rev, "[GC]") / rev_len) * 100
+            rev_tm <- calculate_tm(rev)
+            if (rev_gc < input$gcRange[1] || rev_gc > input$gcRange[2] || rev_tm < input$tmRange[1] || rev_tm > input$tmRange[2]) next
+            
+            amplicon_size <- (k + rev_len - 1) - i + 1
+            relaxed_primers <- rbind(relaxed_primers, data.frame(
+              Accession = this_acc,
+              Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
+              Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
+              Forward = fwd, Reverse = rev,
+              Start = i, End = k + rev_len - 1,
+              Amplicon_Size = amplicon_size,
+              Fwd_Tm = round(fwd_tm, 2), Rev_Tm = round(rev_tm, 2),
+              Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
+              Fwd_GC = round(fwd_gc, 2), Rev_GC = round(rev_gc, 2),
+              GC = round((fwd_gc + rev_gc) / 2, 2),
+              Hairpin = "Unchecked", Dimer = "Unchecked", GC_Clamp = "Unchecked",
+              Score = NA
+            ))
+            if (nrow(relaxed_primers) >= 3) break
+          }
+          if (nrow(relaxed_primers) >= 3) break
+        }
+        if (nrow(relaxed_primers) >= 3) break
+      }
+      if (nrow(relaxed_primers) >= 3) break
     }
+    if (nrow(relaxed_primers) >= 3) break
+  }
+  
+  primers <- relaxed_primers[1:3, ]
+}
     
     primers <- primers[order(primers$Score), ]
     primer_results(primers)
