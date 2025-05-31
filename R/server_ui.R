@@ -314,8 +314,9 @@ server <- function(input, output, session) {
   }
   
   primers <- relaxed_primers[1:3, ]
+      primer_results(primers)  # ✅ Assign to reactive value
 }
-    primer_results(primers)  # ✅ Assign to reactive value
+    
     
     primers <- primers[order(primers$Score), ]
     primer_results(primers)
