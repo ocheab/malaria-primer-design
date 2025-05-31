@@ -263,14 +263,23 @@ server <- function(input, output, session) {
     if (nrow(primers) == 0) {
   showNotification("No primers found with strict constraints. Relaxing parameters...", type = "warning")
 
+  relaxed_primers <- data.frame(
+    Accession = character(), Species = character(), Gene = character(),
+    Forward = character(), Reverse = character(), Start = integer(), End = integer(),
+    Amplicon_Size = integer(),
+    Fwd_Tm = numeric(), Rev_Tm = numeric(), Delta_Tm = numeric(),
+    Fwd_GC = numeric(), Rev_GC = numeric(), GC = numeric(),
+    Score = numeric(), Mode = character(), stringsAsFactors = FALSE
+  )
+
   for (j in seq_along(fasta_set)) {
     incProgress(j / total_seqs, detail = paste("Relaxed search for sequence", j))
     
     this_acc <- strsplit(names(fasta_set)[j], "\\s+")[[1]][1]
     this_seq <- gsub("\\s", "", as.character(fasta_set[[j]]))
     seqlen <- nchar(this_seq)
-    found_pairs <- 0
-    
+    local_hits <- data.frame()
+
     for (i in 1:(seqlen - input$maxLen - rev_window[2])) {
       for (fwd_len in input$minLen:input$maxLen) {
         if ((i + fwd_len - 1) > seqlen) next
@@ -278,7 +287,6 @@ server <- function(input, output, session) {
         fwd_gc <- (str_count(fwd, "[GC]") / fwd_len) * 100
         fwd_tm <- calculate_tm(fwd)
 
-        # Relax: no GC or Tm filtering
         for (k in seq(i + rev_window[1], min(i + rev_window[2], seqlen - input$minLen), by = 10)) {
           for (rev_len in input$minLen:input$maxLen) {
             if ((k + rev_len - 1) > seqlen) break
@@ -289,16 +297,12 @@ server <- function(input, output, session) {
             
             amplicon_size <- (k + rev_len - 1) - i + 1
             
-            hp <- "Unknown"
-            dm <- "Unknown"
-            clamp <- "Unknown"
-            
             score <- abs(fwd_tm - mean(input$tmRange)) +
               abs(rev_tm - mean(input$tmRange)) +
               abs(fwd_gc - mean(input$gcRange)) +
               abs(rev_gc - mean(input$gcRange))
-
-            primers <- rbind(primers, data.frame(
+            
+            local_hits <- rbind(local_hits, data.frame(
               Accession = this_acc,
               Species = ifelse(!is.null(input$customFasta), "User FASTA", input$species),
               Gene = ifelse(!is.null(input$customFasta), "Custom", input$marker),
@@ -309,21 +313,21 @@ server <- function(input, output, session) {
               Delta_Tm = round(abs(fwd_tm - rev_tm), 2),
               Fwd_GC = round(fwd_gc, 2), Rev_GC = round(rev_gc, 2),
               GC = round((fwd_gc + rev_gc) / 2, 2),
-              Hairpin = hp, Dimer = dm, GC_Clamp = clamp,
-              Score = round(score, 2)
+              Score = round(score, 2),
+              Mode = "Relaxed"
             ))
-
-            found_pairs <- found_pairs + 1
-            if (found_pairs >= max_pairs_per_seq) break
           }
-          if (found_pairs >= max_pairs_per_seq) break
         }
-        if (found_pairs >= max_pairs_per_seq) break
       }
-      if (found_pairs >= max_pairs_per_seq) break
+    }
+
+    if (nrow(local_hits) > 0) {
+      top_hits <- head(local_hits[order(local_hits$Score), ], 3)
+      relaxed_primers <- rbind(relaxed_primers, top_hits)
     }
   }
 
+  primers <- relaxed_primers
   showNotification(paste("Relaxed search completed:", nrow(primers), "primers found."), type = "message")
 }    
     
